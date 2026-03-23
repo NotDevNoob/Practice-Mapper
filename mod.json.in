@@ -3,7 +3,7 @@
   "gd": {
     "win": "*"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "id": "notdevnoob.practice-mapper",
   "name": "Practice Mapper",
   "developer": "NotDevNoob",
