@@ -1,41 +1,64 @@
-# Practice Mapper
+Core Features
+adds a Practice button to the online level menu
+automatically finds linked start pos copies
+instantly loads the practice version if available
+shows a small notice if no copy exists (no annoying popups)
+minimal UI, blends into the game cleanly
+🚀 How It Works
+open any online level
+press the Practice button
+the mod checks for a linked start pos copy (via discord database)
+if found → loads instantly
+if not → nothing breaks, just a small message
+🧠 System
+uses a community-driven database of start pos copies
+levels + copies are submitted through a discord server
+mapping is automatic once a valid copy is linked
+🎯 Features Included
 
-Practice Mapper is a Geode mod for Geometry Dash that adds a small Practice button to the online level menu.
+✅ instant practice access
+✅ automatic level lookup
+✅ safe fallback system (no wrong levels)
+✅ clean integration with Geometry Dash UI
 
-When the button is pressed, the mod checks a configured API for an approved practice mapping for the current level.
-If a mapped practice level exists, it opens that level immediately.
-If no mapping exists, or if the mapped level cannot be found, the mod shows a small message instead of sending the player to the wrong level.
+🆕 Recent Updates
+v1.1
+fixed redirection to Stereo Madness when no valid start pos copy existed
+improved validation logic for mapped levels
+v1.0
+initial release
+added Practice button + mapping system
+🚀 Getting Started
+Requirements
+Geometry Dash
+Geode mod loader
+Installation
+download the latest release
+place the .geode file in your mods folder
+launch the game
+📖 Usage
+browse online levels like normal
+press Practice on any level
+start grinding instantly if a mapping exists
+⚠️ Limitations
+not all levels have start pos copies yet
+depends on community submissions
+requires internet connection for lookup
+🛠️ Built With
+Geode SDK
+C++
+🤝 Contributing
 
-## Features
+wanna help improve coverage?
 
-- Adds a Practice button to the online level menu
-- Places the button dynamically to avoid overlapping existing UI
-- Adapts to different screen sizes and aspect ratios
-- Looks up approved mappings from a backend API
-- Opens mapped practice levels directly
-- Shows a popup when a mapped level ID is invalid
+submit start pos copies to the discord
+report broken mappings
+suggest improvements via issues
+📄 License
 
-## Setting
+This project is licensed under the MIT License.
 
-- `API Base URL`: the backend address used for mapping lookups
-
-Example:
-
-`http://127.0.0.1:3000`
-
-## Files
-
-- `src/main.cpp`: main mod logic
-- `mod.json`: Geode metadata
-- `about.md`: detailed mod description shown in Geode
-- `logo.png`: mod icon shown in Geode
-
-## Build
-
-This project targets Windows and is built with Geode.
-
-Typical build command:
-
-```powershell
-geode build
-```
+🙏 Acknowledgments
+Geode community
+contributors submitting start pos copies
+anyone tired of manually setting practice points 💀
