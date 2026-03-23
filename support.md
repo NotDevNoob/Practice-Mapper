@@ -2,7 +2,7 @@
 
 If you want help, want to submit new mappings, or need to report a bad one, join the community Discord:
 
-`https://discord.gg/CXHNThXEN6`
+`https://discord.gg/EG4s6VuuTE`
 
 What you can do there:
 
