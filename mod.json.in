@@ -1,5 +1,5 @@
 {
-  "geode": "4.10.1",
+  "geode": "5.4.1",
   "gd": {
     "win": "*"
   },
@@ -8,6 +8,20 @@
   "name": "Practice Mapper",
   "developer": "NotDevNoob",
   "description": "Adds a layout-aware Practice button to online level menus, fetches approved mappings from your API, and opens the mapped practice level instantly when one exists.",
+  "links": {
+    "community": "https://discord.gg/CXHNThXEN6",
+    "source": "https://github.com/NotDevNoob/Practice-Mapper"
+  },
+  "repository": "https://github.com/NotDevNoob/Practice-Mapper",
+  "issues": {
+    "info": "Need help, want to submit mappings, or want to report a broken one? Join the <cp>Practice Mapper Discord</c> or open a GitHub issue.",
+    "url": "https://github.com/NotDevNoob/Practice-Mapper/issues/new"
+  },
+  "resources": {
+    "files": [
+      "support.md"
+    ]
+  },
   "tags": ["online", "utility", "interface"],
   "settings": {
     "api-base-url": {

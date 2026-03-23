@@ -1,6 +1,8 @@
 #include <Geode/Bindings.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
 #include <Geode/ui/Notification.hpp>
+#include <Geode/utils/async.hpp>
+#include <Geode/utils/cocos.hpp>
 #include <Geode/utils/web.hpp>
 
 #include <chrono>
@@ -61,9 +63,8 @@ namespace {
             return;
         }
 
-        CCObject* object = nullptr;
-        CCARRAY_FOREACH(children, object) {
-            collectInteractiveBounds(static_cast<CCNode*>(object), relativeTo, ignore, out);
+        for (auto child : node->getChildrenExt()) {
+            collectInteractiveBounds(child, relativeTo, ignore, out);
         }
     }
 
@@ -99,8 +100,7 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
     struct Fields {
         CCMenu* overlayMenu = nullptr;
         CCMenuItemSpriteExtra* practiceButton = nullptr;
-        EventListener<web::WebTask> mappingListener;
-        int pendingPracticeLevelId = 0;
+        async::TaskHolder<web::WebResponse> mappingRequest;
         bool requestInFlight = false;
     };
 
@@ -151,7 +151,6 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
 
         m_fields->overlayMenu = overlayMenu;
         m_fields->practiceButton = practiceButton;
-        m_fields->mappingListener.bind(this, &PracticeMappingLevelInfoLayer::onMappingResponse);
     }
 
     std::optional<CCPoint> findSafeButtonPosition(CCMenuItemSpriteExtra* button) {
@@ -213,9 +212,8 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         CCMenuItemSpriteExtra* best = nullptr;
         float bestArea = 0.f;
 
-        CCObject* object = nullptr;
-        CCARRAY_FOREACH(children, object) {
-            auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(static_cast<CCNode*>(object));
+        for (auto node : m_playBtnMenu->getChildrenExt()) {
+            auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(node);
             if (!item || !item->isVisible()) {
                 continue;
             }
@@ -257,39 +255,32 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         auto url = fmt::format("{}/mapping?level_id={}", normalizedApiBaseUrl(), originalLevelId);
         web::WebRequest request;
         request.timeout(std::chrono::seconds(5));
-        m_fields->mappingListener.setFilter(request.get(url));
+        m_fields->mappingRequest.spawn(
+            "Practice mapping lookup",
+            request.get(url),
+            [this](web::WebResponse response) {
+                this->onMappingResponse(std::move(response));
+            }
+        );
     }
 
-    void onMappingResponse(web::WebTask::Event* event) {
-        if (!event) {
-            return;
-        }
-
-        if (event->getProgress()) {
-            return;
-        }
-
-        if (event->isCancelled()) {
+    void onMappingResponse(web::WebResponse response) {
+        if (response.cancelled()) {
             m_fields->requestInFlight = false;
             this->setPracticeButtonEnabled(true);
-            return;
-        }
-
-        auto response = event->getValue();
-        if (!response) {
             return;
         }
 
         m_fields->requestInFlight = false;
         this->setPracticeButtonEnabled(true);
 
-        if (!response->ok()) {
-            log::warn("Practice mapping lookup failed with code {}: {}", response->code(), response->errorMessage());
+        if (!response.ok()) {
+            log::warn("Practice mapping lookup failed with code {}: {}", response.code(), response.errorMessage());
             showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
             return;
         }
 
-        auto jsonResult = response->json();
+        auto jsonResult = response.json();
         if (!jsonResult) {
             log::warn("Practice mapping lookup returned invalid JSON: {}", jsonResult.unwrapErr());
             showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
@@ -373,26 +364,5 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         }
 
         CCDirector::sharedDirector()->replaceScene(CCTransitionFade::create(0.25f, scene));
-    }
-
-    void levelDownloadFinished(GJGameLevel* level) {
-        if (m_fields->pendingPracticeLevelId > 0 && level && level->m_levelID.value() == m_fields->pendingPracticeLevelId) {
-            m_fields->pendingPracticeLevelId = 0;
-            this->switchToMappedLevel(level);
-            return;
-        }
-
-        LevelInfoLayer::levelDownloadFinished(level);
-    }
-
-    void levelDownloadFailed(int response) {
-        if (m_fields->pendingPracticeLevelId > 0) {
-            log::warn("Failed to download mapped practice level {} (response {})", m_fields->pendingPracticeLevelId, response);
-            m_fields->pendingPracticeLevelId = 0;
-            showNotice("Failed to load practice level", NotificationIcon::Warning);
-            return;
-        }
-
-        LevelInfoLayer::levelDownloadFailed(response);
     }
 };

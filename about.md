@@ -2,6 +2,16 @@
 
 Practice Mapper adds a dedicated `Practice` button to the online level menu in Geometry Dash and connects it to your approved level-mapping system.
 
+## Join the Discord
+
+Need help? Want to submit a mapping? Want to report one that opens the wrong level?
+
+Join the Practice Mapper Discord:
+
+`https://discord.gg/CXHNThXEN6`
+
+You can also open the mod page in Geode and tap the Discord icon to jump there directly.
+
 ## What It Does
 
 - Adds a smaller Practice-style button near the level actions without hardcoding a fixed overlapping position
