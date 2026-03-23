@@ -1,0 +1,20 @@
+{
+  "geode": "4.10.1",
+  "gd": {
+    "win": "*"
+  },
+  "version": "1.0.0",
+  "id": "notdevnoob.practice-mapper",
+  "name": "Practice Mapper",
+  "developer": "NotDevNoob",
+  "description": "Adds a layout-aware Practice button to online level menus, fetches approved mappings from your API, and opens the mapped practice level instantly when one exists.",
+  "tags": ["online", "utility", "interface"],
+  "settings": {
+    "api-base-url": {
+      "type": "string",
+      "name": "API Base URL",
+      "description": "Base URL used to fetch approved practice mappings.",
+      "default": "http://localhost:3000"
+    }
+  }
+}
