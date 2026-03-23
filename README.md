@@ -1,7 +1,5 @@
 # Practice Mapper
 
-[![Discord: aa](https://img.shields.io/badge/License-MIT-yellow.svg)](https://discord.gg/vMNPXC9F5t).
-
 Core Features
 adds a Practice button to the online level menu
 automatically finds linked start pos copies
