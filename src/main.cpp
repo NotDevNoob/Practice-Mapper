@@ -101,6 +101,7 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         CCMenu* overlayMenu = nullptr;
         CCMenuItemSpriteExtra* practiceButton = nullptr;
         async::TaskHolder<web::WebResponse> mappingRequest;
+        int mappedPracticeLevelId = 0;
         bool requestInFlight = false;
     };
 
@@ -109,12 +110,37 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
             return false;
         }
 
-        this->addPracticeButton();
+        this->startMappingLookup(false);
         return true;
     }
 
+    void startMappingLookup(bool showErrors) {
+        if (!m_level || m_fields->requestInFlight) {
+            return;
+        }
+
+        auto originalLevelId = m_level->m_levelID.value();
+        if (originalLevelId <= 0) {
+            return;
+        }
+
+        m_fields->requestInFlight = true;
+        this->setPracticeButtonEnabled(false);
+
+        auto url = fmt::format("{}/mapping?level_id={}", normalizedApiBaseUrl(), originalLevelId);
+        web::WebRequest request;
+        request.timeout(std::chrono::seconds(5));
+        m_fields->mappingRequest.spawn(
+            "Practice mapping lookup",
+            request.get(url),
+            [this, showErrors](web::WebResponse response) {
+                this->onMappingResponse(std::move(response), showErrors);
+            }
+        );
+    }
+
     void addPracticeButton() {
-        if (!m_playBtnMenu || !m_level) {
+        if (!m_playBtnMenu || !m_level || m_fields->practiceButton) {
             return;
         }
 
@@ -243,28 +269,16 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
             return;
         }
 
-        auto originalLevelId = m_level->m_levelID.value();
-        if (originalLevelId <= 0) {
-            showNotice("No practice mapping available", NotificationIcon::Info);
+        if (m_fields->mappedPracticeLevelId <= 0) {
             return;
         }
 
-        m_fields->requestInFlight = true;
         this->setPracticeButtonEnabled(false);
-
-        auto url = fmt::format("{}/mapping?level_id={}", normalizedApiBaseUrl(), originalLevelId);
-        web::WebRequest request;
-        request.timeout(std::chrono::seconds(5));
-        m_fields->mappingRequest.spawn(
-            "Practice mapping lookup",
-            request.get(url),
-            [this](web::WebResponse response) {
-                this->onMappingResponse(std::move(response));
-            }
-        );
+        this->openPracticeLevel(m_fields->mappedPracticeLevelId);
+        this->setPracticeButtonEnabled(true);
     }
 
-    void onMappingResponse(web::WebResponse response) {
+    void onMappingResponse(web::WebResponse response, bool showErrors) {
         if (response.cancelled()) {
             m_fields->requestInFlight = false;
             this->setPracticeButtonEnabled(true);
@@ -276,42 +290,52 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
 
         if (!response.ok()) {
             log::warn("Practice mapping lookup failed with code {}: {}", response.code(), response.errorMessage());
-            showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            if (showErrors) {
+                showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            }
             return;
         }
 
         auto jsonResult = response.json();
         if (!jsonResult) {
             log::warn("Practice mapping lookup returned invalid JSON: {}", jsonResult.unwrapErr());
-            showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            if (showErrors) {
+                showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            }
             return;
         }
 
         auto payload = jsonResult.unwrap();
         if (!payload.isObject() || !payload.contains("found") || !payload["found"].isBool()) {
             log::warn("Practice mapping lookup returned an unexpected payload: {}", payload.dump());
-            showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            if (showErrors) {
+                showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            }
             return;
         }
 
         if (!payload["found"].asBool().unwrapOr(false)) {
-            showNotice("No practice mapping available", NotificationIcon::Info);
             return;
         }
 
         if (!payload.contains("practiceLevelId") || !payload["practiceLevelId"].isNumber()) {
             log::warn("Practice mapping payload is missing practiceLevelId: {}", payload.dump());
-            showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            if (showErrors) {
+                showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            }
             return;
         }
 
         auto practiceLevelId = payload["practiceLevelId"].asInt().unwrapOr(0);
         if (practiceLevelId <= 0) {
-            showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            if (showErrors) {
+                showNotice("Practice mapping lookup failed", NotificationIcon::Warning);
+            }
             return;
         }
 
-        this->openPracticeLevel(practiceLevelId);
+        m_fields->mappedPracticeLevelId = practiceLevelId;
+        this->addPracticeButton();
     }
 
     void openPracticeLevel(int practiceLevelId) {
