@@ -21,7 +21,7 @@ Practice Mapper adds a small Practice button to the online level menu in Geometr
 
 Need help, want to submit mappings, or want to report a broken one?
 
-- Discord: `https://discord.gg/CXHNThXEN6`
+- Discord: `https://discord.gg/EG4s6VuuTE`
 - GitHub: `https://github.com/NotDevNoob/Practice-Mapper`
 
 ## Settings

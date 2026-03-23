@@ -8,7 +8,7 @@ Need help? Want to submit a mapping? Want to report one that opens the wrong lev
 
 Join the Practice Mapper Discord:
 
-`https://discord.gg/CXHNThXEN6`
+`https://discord.gg/EG4s6VuuTE`
 
 You can also open the mod page in Geode and tap the Discord icon to jump there directly.
 
