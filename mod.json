@@ -3,11 +3,11 @@
   "gd": {
     "win": "*"
   },
-  "version": "1.0.1",
+  "version": "1.0.2",
   "id": "notdevnoob.practice-mapper",
   "name": "Practice Mapper",
   "developer": "NotDevNoob",
-  "description": "Adds a layout-aware Practice button to online level menus, fetches approved mappings from your API, and opens the mapped practice level instantly when one exists.",
+  "description": "Adds a layout-aware Practice button to online level menus, reads approved mappings from the public GitHub JSON with optional API fallback, and opens the mapped practice level when one exists.",
   "links": {
     "community": "https://discord.gg/EG4s6VuuTE",
     "source": "https://github.com/NotDevNoob/Practice-Mapper"
@@ -24,11 +24,17 @@
   },
   "tags": ["online", "utility", "interface"],
   "settings": {
+    "approved-mappings-url": {
+      "type": "string",
+      "name": "Approved Mappings URL",
+      "description": "Public JSON file used for approved mapping lookups before API fallback.",
+      "default": "https://raw.githubusercontent.com/NotDevNoob/gd-level-mappings/main/mappings.json"
+    },
     "api-base-url": {
       "type": "string",
       "name": "API Base URL",
-      "description": "Base URL used to fetch approved practice mappings.",
-      "default": "http://localhost:3000"
+      "description": "Optional fallback API used if the approved mappings URL is unavailable.",
+      "default": ""
     }
   }
 }
