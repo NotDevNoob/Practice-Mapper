@@ -3,11 +3,11 @@
   "gd": {
     "win": "*"
   },
-  "version": "1.0.2",
+  "version": "1.1.0",
   "id": "notdevnoob.practice-mapper",
   "name": "Practice Mapper",
   "developer": "NotDevNoob",
-  "description": "Adds a layout-aware Practice button to online level menus, reads approved mappings from the public GitHub JSON with optional API fallback, and opens the mapped practice level when one exists.",
+  "description": "Adds a layout-aware Practice button for approved mappings, lets players browse and submit new practice mappings in-game, and reads approved mappings from configurable GitHub storage with optional API fallback.",
   "links": {
     "community": "https://discord.gg/EG4s6VuuTE",
     "source": "https://github.com/NotDevNoob/Practice-Mapper"
@@ -24,16 +24,34 @@
   },
   "tags": ["online", "utility", "interface"],
   "settings": {
+    "github-repository": {
+      "type": "string",
+      "name": "GitHub Repository",
+      "description": "Repository in owner/repo form used for approved mappings when the override URL is empty.",
+      "default": "NotDevNoob/gd-level-mappings"
+    },
+    "github-branch": {
+      "type": "string",
+      "name": "GitHub Branch",
+      "description": "Branch used for approved mappings when the override URL is empty.",
+      "default": "main"
+    },
+    "github-json-path": {
+      "type": "string",
+      "name": "GitHub JSON Path",
+      "description": "Path to the approved mappings JSON file inside the GitHub repository.",
+      "default": "mappings.json"
+    },
     "approved-mappings-url": {
       "type": "string",
       "name": "Approved Mappings URL",
-      "description": "Public JSON file used for approved mapping lookups before API fallback.",
-      "default": "https://raw.githubusercontent.com/NotDevNoob/gd-level-mappings/main/mappings.json"
+      "description": "Advanced override. Leave empty to build the raw GitHub URL from the repository, branch, and JSON path settings.",
+      "default": ""
     },
     "api-base-url": {
       "type": "string",
       "name": "API Base URL",
-      "description": "Optional fallback API used if the approved mappings URL is unavailable.",
+      "description": "Optional API used for fallback lookups and in-game mapping submissions.",
       "default": ""
     }
   }
