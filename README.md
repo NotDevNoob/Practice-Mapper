@@ -4,7 +4,7 @@ Practice Mapper adds a small Practice button to the online level menu in Geometr
 
 ## Compatibility
 
-- Geometry Dash `2.208.1`
+- Geometry Dash `2.2081`
 - Geode `5.4.1`
 - Windows
 
@@ -24,26 +24,3 @@ Need help, want to submit mappings, or want to report a broken one?
 - Discord: `https://discord.gg/EG4s6VuuTE`
 - GitHub: `https://github.com/NotDevNoob/Practice-Mapper`
 
-## Settings
-
-The mod exposes one setting in Geode:
-
-- `API Base URL` - the backend endpoint used for mapping lookups, for example `http://127.0.0.1:3000`
-
-## Build
-
-This repo is configured for Geode `5.4.1`. If you are building locally with the project-local SDK clone:
-
-```powershell
-$env:GEODE_SDK='C:\Users\andre\Desktop\startpos\_geode-sdk-5.4.1'
-cd C:\Users\andre\Desktop\startpos\geode-mod
-geode build
-```
-
-## Automation
-
-GitHub Actions is set up to:
-
-- build the mod on pushes and pull requests
-- upload the built `.geode` as a workflow artifact
-- create a GitHub release with the built `.geode` when a tag like `v1.0.0` is pushed
