@@ -1,14 +1,11 @@
 # Join the Practice Mapper Discord
 
-If you want help, want to submit new mappings, or need to report a bad one, join the community Discord:
+Need help, want to submit a mapping, or found one that opens the wrong level?
 
 `https://discord.gg/EG4s6VuuTE`
 
-What you can do there:
+That is the main place for:
 
-- submit new practice mappings
-- report broken or outdated mappings
-- ask for setup help with the mod, bot, or API
-- follow approvals and project updates
-
-If you opened this from the Geode mod page, you can also press the Discord icon there for the same server.
+- new mapping submissions
+- broken mapping reports
+- updates and approvals

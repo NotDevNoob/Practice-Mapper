@@ -1,25 +1,33 @@
 # Practice Mapper
 
-Practice Mapper adds a small Practice button to the online level menu in Geometry Dash. When a mapped practice level exists, the mod opens it immediately so players can jump straight into the practice copy without searching for it manually.
+Practice Mapper makes practice copies easy to open.
 
-## Compatibility
+When an online level has an approved practice copy, a small `Practice` button appears next to the difficulty. Press it and the mapped practice level opens right away.
 
-- Geometry Dash `2.2081`
-- Geode `5.4.1`
-- Windows
+If a level does not have a mapping yet, the mod can also help you pick one in-game and send it for review.
 
-## What the Mod Does
+## How It Feels In Game
 
-- adds a practice-style button near the main level actions
-- places the button dynamically to avoid overlapping existing UI
-- looks up approved mappings through the configured API
-- opens the mapped practice level if it exists
-- shows a small notice if no mapping is available
-- blocks invalid fallback opens such as redirecting to level `1`
+- open a level
+- if a mapping exists, press `Practice`
+- if no mapping exists, use `Pick Practice`
+- choose the level you want
+- press `Use This Level` to send it for review
 
-## Discord
+## What It Tries To Do Well
 
-Need help, want to submit mappings, or want to report a broken one?
+- keeps the button small and out of the way
+- only shows `Practice` when a real approved mapping exists
+- avoids bad fallback opens like sending you to level `1`
+- lets players help fill in missing mappings without leaving the game
+
+## Most Players Do Not Need To Configure Anything
+
+The mod reads approved mappings from its configured GitHub source.
+
+If you just want to play mapped practice levels, install it and use the button when it appears.
+
+## Community
 
 - Discord: `https://discord.gg/EG4s6VuuTE`
 - GitHub: `https://github.com/NotDevNoob/Practice-Mapper`

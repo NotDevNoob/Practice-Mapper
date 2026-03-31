@@ -3,18 +3,18 @@
   "gd": {
     "win": "*"
   },
-  "version": "1.1.0",
+  "version": "1.2.0",
   "id": "notdevnoob.practice-mapper",
   "name": "Practice Mapper",
   "developer": "NotDevNoob",
-  "description": "Adds a layout-aware Practice button for approved mappings, lets players browse and submit new practice mappings in-game, and reads approved mappings from configurable GitHub storage with optional API fallback.",
+  "description": "Adds a small Practice button to online levels so approved practice copies can be opened quickly, and lets players submit missing mappings in-game.",
   "links": {
     "community": "https://discord.gg/EG4s6VuuTE",
     "source": "https://github.com/NotDevNoob/Practice-Mapper"
   },
   "repository": "https://github.com/NotDevNoob/Practice-Mapper",
   "issues": {
-    "info": "Need help, want to submit mappings, or want to report a broken one? Join the <cp>Practice Mapper Discord</c> or open a GitHub issue.",
+    "info": "Need help, want to submit mappings, or found a broken one? Join the <cp>Practice Mapper Discord</c>.",
     "url": "https://github.com/NotDevNoob/Practice-Mapper/issues/new"
   },
   "resources": {
@@ -27,31 +27,31 @@
     "github-repository": {
       "type": "string",
       "name": "GitHub Repository",
-      "description": "Repository in owner/repo form used for approved mappings when the override URL is empty.",
+      "description": "Repository in owner/repo form for approved mappings. Most players can leave this alone.",
       "default": "NotDevNoob/gd-level-mappings"
     },
     "github-branch": {
       "type": "string",
       "name": "GitHub Branch",
-      "description": "Branch used for approved mappings when the override URL is empty.",
+      "description": "Branch for approved mappings. Most players can leave this alone.",
       "default": "main"
     },
     "github-json-path": {
       "type": "string",
       "name": "GitHub JSON Path",
-      "description": "Path to the approved mappings JSON file inside the GitHub repository.",
+      "description": "Path to the approved mappings JSON file inside the repository.",
       "default": "mappings.json"
     },
     "approved-mappings-url": {
       "type": "string",
       "name": "Approved Mappings URL",
-      "description": "Advanced override. Leave empty to build the raw GitHub URL from the repository, branch, and JSON path settings.",
+      "description": "Optional direct link to an approved mappings JSON file.",
       "default": ""
     },
     "api-base-url": {
       "type": "string",
       "name": "API Base URL",
-      "description": "Optional API used for fallback lookups and in-game mapping submissions.",
+      "description": "Only needed for in-game submissions and Discord review.",
       "default": ""
     }
   }

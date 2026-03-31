@@ -24,6 +24,7 @@ namespace {
     constexpr auto kLookupTimeout = std::chrono::seconds(5);
     constexpr auto kSubmitTimeout = std::chrono::seconds(10);
     constexpr auto kApprovedMappingsCacheTtl = std::chrono::seconds(30);
+    constexpr auto kMappingsFailurePopupCooldown = std::chrono::seconds(20);
 
     constexpr char kDefaultGithubRepository[] = "NotDevNoob/gd-level-mappings";
     constexpr char kDefaultGithubBranch[] = "main";
@@ -42,6 +43,8 @@ namespace {
 
     ApprovedMappingsCache gApprovedMappingsCache;
     PendingSelectionState gPendingSelection;
+    std::string gLastMappingsFailureMessage;
+    std::chrono::steady_clock::time_point gLastMappingsFailureAt {};
 
     std::string trimWhitespace(std::string value) {
         auto isSpace = [](unsigned char character) {
@@ -183,6 +186,60 @@ namespace {
         FLAlertLayer::create(title.c_str(), text, "OK")->show();
     }
 
+    std::string levelNameOrEmpty(GJGameLevel* level) {
+        if (!level || level->m_levelName.empty()) {
+            return "";
+        }
+
+        return std::string(level->m_levelName.c_str());
+    }
+
+    std::string invalidResolvedPracticeLevelReason(GJGameLevel* level, int expectedLevelId) {
+        if (expectedLevelId <= 1) {
+            return "invalid_expected_level_id";
+        }
+
+        if (!level) {
+            return "missing_level";
+        }
+
+        auto resolvedLevelId = level->m_levelID.value();
+        if (resolvedLevelId <= 1) {
+            return fmt::format("invalid_resolved_level_id:{}", resolvedLevelId);
+        }
+
+        if (resolvedLevelId != expectedLevelId) {
+            return fmt::format("mismatched_level_id:{}", resolvedLevelId);
+        }
+
+        if (levelNameOrEmpty(level).empty()) {
+            return "empty_level_name";
+        }
+
+        return "";
+    }
+
+    bool isResolvedPracticeLevelValid(GJGameLevel* level, int expectedLevelId, std::string* reason = nullptr) {
+        auto failureReason = invalidResolvedPracticeLevelReason(level, expectedLevelId);
+        if (reason) {
+            *reason = failureReason;
+        }
+
+        return failureReason.empty();
+    }
+
+    void showMappingsFailurePopup(std::string const& text) {
+        auto now = std::chrono::steady_clock::now();
+        if (text == gLastMappingsFailureMessage &&
+            (now - gLastMappingsFailureAt) < kMappingsFailurePopupCooldown) {
+            return;
+        }
+
+        gLastMappingsFailureMessage = text;
+        gLastMappingsFailureAt = now;
+        showPopup("Practice Mapper", text);
+    }
+
     std::string submissionErrorMessage(web::WebResponse const& response) {
         auto jsonResult = response.json();
         if (jsonResult) {
@@ -271,8 +328,11 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         async::TaskHolder<web::WebResponse> mappingRequest;
         async::TaskHolder<web::WebResponse> submitRequest;
         int mappedPracticeLevelId = 0;
+        int pendingPracticeDownloadLevelId = 0;
+        std::string approvedMappingsSourceUrl;
         bool lookupInFlight = false;
         bool submitInFlight = false;
+        bool practiceDownloadInFlight = false;
     };
 
     bool init(GJGameLevel* level, bool challenge) {
@@ -313,6 +373,30 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
             return "";
         }
         return m_level->m_levelName.empty() ? "" : std::string(m_level->m_levelName.c_str());
+    }
+
+    int currentLevelId() const {
+        return m_level ? m_level->m_levelID.value() : 0;
+    }
+
+    void logPracticeInfo(char const* phase, int practiceLevelId, std::string const& detail) const {
+        log::info(
+            "[PracticeMapper] phase={} original={} practice={} {}",
+            phase,
+            this->currentLevelId(),
+            practiceLevelId,
+            detail
+        );
+    }
+
+    void logPracticeWarning(char const* phase, int practiceLevelId, std::string const& detail) const {
+        log::warn(
+            "[PracticeMapper] phase={} original={} practice={} {}",
+            phase,
+            this->currentLevelId(),
+            practiceLevelId,
+            detail
+        );
     }
 
     CCMenuItemSpriteExtra* createIconButton(
@@ -362,13 +446,24 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         std::vector<CCRect> occupied;
         collectInteractiveBounds(this, this, button, occupied);
 
+        auto primaryLeftX = anchorRect.getMinX() - 8.f - buttonSize.width / 2.f;
+        auto secondaryLeftX = primaryLeftX - (buttonSize.width + 6.f);
+        auto tertiaryLeftX = secondaryLeftX - (buttonSize.width + 6.f);
+        auto rightFallbackX = anchorRect.getMaxX() + 8.f + buttonSize.width / 2.f;
+        auto upperY = anchorRect.getMidY() + buttonSize.height + 4.f;
+        auto lowerY = anchorRect.getMidY() - buttonSize.height - 4.f;
+
         std::vector<CCPoint> candidates = {
-            { anchorRect.getMidX(), anchorRect.getMinY() - 32.f - buttonSize.height / 2.f },
-            { anchorRect.getMidX() - (buttonSize.width + 6.f), anchorRect.getMinY() - 32.f - buttonSize.height / 2.f },
-            { anchorRect.getMidX() + (buttonSize.width + 6.f), anchorRect.getMinY() - 32.f - buttonSize.height / 2.f },
+            { primaryLeftX, anchorRect.getMidY() },
+            { secondaryLeftX, anchorRect.getMidY() },
+            { tertiaryLeftX, anchorRect.getMidY() },
+            { primaryLeftX, upperY },
+            { primaryLeftX, lowerY },
+            { secondaryLeftX, upperY },
+            { secondaryLeftX, lowerY },
+            { rightFallbackX, anchorRect.getMidY() },
+            { anchorRect.getMidX(), anchorRect.getMinY() - 20.f - buttonSize.height / 2.f },
             { anchorRect.getMidX(), anchorRect.getMaxY() + 8.f + buttonSize.height / 2.f },
-            { anchorRect.getMidX() - (buttonSize.width + 6.f), anchorRect.getMaxY() + 8.f + buttonSize.height / 2.f },
-            { anchorRect.getMidX() + (buttonSize.width + 6.f), anchorRect.getMaxY() + 8.f + buttonSize.height / 2.f },
         };
 
         for (auto const& candidate : candidates) {
@@ -452,13 +547,14 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
     }
 
     void updateActionButtonStates() {
+        auto actionsBusy = m_fields->lookupInFlight || m_fields->submitInFlight || m_fields->practiceDownloadInFlight;
         this->setButtonState(
             m_fields->practiceButton,
-            !m_fields->lookupInFlight && !m_fields->submitInFlight && m_fields->mappedPracticeLevelId > 0
+            !actionsBusy && m_fields->mappedPracticeLevelId > 0
         );
-        this->setButtonState(m_fields->browseButton, !m_fields->submitInFlight);
-        this->setButtonState(m_fields->useButton, !m_fields->submitInFlight);
-        this->setButtonState(m_fields->cancelButton, !m_fields->submitInFlight);
+        this->setButtonState(m_fields->browseButton, !m_fields->submitInFlight && !m_fields->practiceDownloadInFlight);
+        this->setButtonState(m_fields->useButton, !m_fields->submitInFlight && !m_fields->practiceDownloadInFlight);
+        this->setButtonState(m_fields->cancelButton, !m_fields->submitInFlight && !m_fields->practiceDownloadInFlight);
     }
 
     void addPracticeButton() {
@@ -585,35 +681,7 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         this->updateActionButtonStates();
     }
 
-    void startApiLookup() {
-        auto apiBaseUrl = normalizedApiBaseUrl();
-        if (apiBaseUrl.empty()) {
-            this->finishMappingLookup(std::nullopt);
-            return;
-        }
-
-        auto originalLevelId = m_level ? m_level->m_levelID.value() : 0;
-        if (originalLevelId <= 0) {
-            this->finishMappingLookup(std::nullopt);
-            return;
-        }
-
-        m_fields->lookupInFlight = true;
-        this->refreshActionButtons();
-
-        auto url = fmt::format("{}/mapping?level_id={}", apiBaseUrl, originalLevelId);
-        web::WebRequest request;
-        request.timeout(kLookupTimeout);
-        m_fields->mappingRequest.spawn(
-            "Practice mapping API lookup",
-            request.get(url),
-            [this](web::WebResponse response) {
-                this->onApiMappingResponse(std::move(response));
-            }
-        );
-    }
-
-    void applyApprovedMappingsLookup(matjson::Value const& payload) {
+    void applyApprovedMappingsLookup(matjson::Value const& payload, std::string const& sourceUrl, bool fromCache) {
         auto originalLevelId = m_level ? m_level->m_levelID.value() : 0;
         if (originalLevelId <= 0) {
             this->finishMappingLookup(std::nullopt);
@@ -622,15 +690,35 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
 
         auto practiceLevelId = findPracticeLevelIdInMappings(payload, originalLevelId);
         if (practiceLevelId) {
+            if (*practiceLevelId <= 1) {
+                this->logPracticeWarning(
+                    "lookup_result",
+                    *practiceLevelId,
+                    fmt::format(
+                        "result=invalid_mapping source_url={} cache_hit={}",
+                        sourceUrl,
+                        fromCache ? "true" : "false"
+                    )
+                );
+                showMappingsFailurePopup("Approved mappings contain an invalid practice level ID for this level.");
+                this->finishMappingLookup(std::nullopt);
+                return;
+            }
+
+            this->logPracticeInfo(
+                "lookup_result",
+                *practiceLevelId,
+                fmt::format("result=found source_url={} cache_hit={}", sourceUrl, fromCache ? "true" : "false")
+            );
             this->finishMappingLookup(practiceLevelId);
             return;
         }
 
-        if (!normalizedApiBaseUrl().empty()) {
-            this->startApiLookup();
-            return;
-        }
-
+        this->logPracticeInfo(
+            "lookup_result",
+            0,
+            fmt::format("result=not_found source_url={} cache_hit={}", sourceUrl, fromCache ? "true" : "false")
+        );
         this->finishMappingLookup(std::nullopt);
     }
 
@@ -645,20 +733,35 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         }
 
         m_fields->mappedPracticeLevelId = 0;
-
-        if (hasFreshApprovedMappingsCache()) {
-            this->applyApprovedMappingsLookup(*gApprovedMappingsCache.payload);
-            return;
-        }
+        m_fields->approvedMappingsSourceUrl.clear();
 
         auto mappingsUrl = normalizedApprovedMappingsUrl();
         if (mappingsUrl.empty()) {
-            this->startApiLookup();
+            this->logPracticeWarning("lookup_abort", 0, "reason=missing_approved_mappings_url");
+            showMappingsFailurePopup("Approved mappings URL is not configured. Check the GitHub settings in Practice Mapper.");
+            this->finishMappingLookup(std::nullopt);
+            return;
+        }
+
+        m_fields->approvedMappingsSourceUrl = mappingsUrl;
+
+        if (hasFreshApprovedMappingsCache()) {
+            this->logPracticeInfo(
+                "lookup_start",
+                0,
+                fmt::format("source_url={} cache_hit=true", mappingsUrl)
+            );
+            this->applyApprovedMappingsLookup(*gApprovedMappingsCache.payload, mappingsUrl, true);
             return;
         }
 
         m_fields->lookupInFlight = true;
         this->refreshActionButtons();
+        this->logPracticeInfo(
+            "lookup_start",
+            0,
+            fmt::format("source_url={} cache_hit=false", mappingsUrl)
+        );
 
         web::WebRequest request;
         request.timeout(kLookupTimeout);
@@ -678,76 +781,64 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
         }
 
         if (!response.ok()) {
-            log::warn(
-                "Approved mappings lookup failed with code {}: {}",
-                response.code(),
-                response.errorMessage()
+            this->logPracticeWarning(
+                "lookup_error",
+                0,
+                fmt::format(
+                    "source_url={} code={} message={}",
+                    m_fields->approvedMappingsSourceUrl,
+                    response.code(),
+                    response.errorMessage()
+                )
             );
-            this->startApiLookup();
+            showMappingsFailurePopup("Could not load approved mappings from GitHub. Check the repository, path, or URL settings.");
+            this->finishMappingLookup(std::nullopt);
             return;
         }
 
         auto jsonResult = response.json();
         if (!jsonResult) {
-            log::warn("Approved mappings lookup returned invalid JSON: {}", jsonResult.unwrapErr());
-            this->startApiLookup();
+            this->logPracticeWarning(
+                "lookup_error",
+                0,
+                fmt::format(
+                    "source_url={} reason=invalid_json detail={}",
+                    m_fields->approvedMappingsSourceUrl,
+                    jsonResult.unwrapErr()
+                )
+            );
+            showMappingsFailurePopup("Approved mappings JSON is invalid. Check the GitHub mappings file.");
+            this->finishMappingLookup(std::nullopt);
             return;
         }
 
         auto payload = jsonResult.unwrap();
         if (!payload.isObject()) {
-            log::warn("Approved mappings lookup returned an unexpected payload: {}", payload.dump());
-            this->startApiLookup();
+            this->logPracticeWarning(
+                "lookup_error",
+                0,
+                fmt::format(
+                    "source_url={} reason=unexpected_payload payload={}",
+                    m_fields->approvedMappingsSourceUrl,
+                    payload.dump()
+                )
+            );
+            showMappingsFailurePopup("Approved mappings JSON must be an object of original level IDs to practice level IDs.");
+            this->finishMappingLookup(std::nullopt);
             return;
         }
 
         cacheApprovedMappings(payload);
-        this->applyApprovedMappingsLookup(payload);
-    }
-
-    void onApiMappingResponse(web::WebResponse response) {
-        if (response.cancelled()) {
-            this->finishMappingLookup(std::nullopt);
-            return;
-        }
-
-        if (!response.ok()) {
-            log::warn("Practice mapping API lookup failed with code {}: {}", response.code(), response.errorMessage());
-            this->finishMappingLookup(std::nullopt);
-            return;
-        }
-
-        auto jsonResult = response.json();
-        if (!jsonResult) {
-            log::warn("Practice mapping API lookup returned invalid JSON: {}", jsonResult.unwrapErr());
-            this->finishMappingLookup(std::nullopt);
-            return;
-        }
-
-        auto payload = jsonResult.unwrap();
-        if (!payload.isObject() || !payload.contains("found") || !payload["found"].isBool()) {
-            log::warn("Practice mapping API lookup returned an unexpected payload: {}", payload.dump());
-            this->finishMappingLookup(std::nullopt);
-            return;
-        }
-
-        if (!payload["found"].asBool().unwrapOr(false)) {
-            this->finishMappingLookup(std::nullopt);
-            return;
-        }
-
-        if (!payload.contains("practiceLevelId") || !payload["practiceLevelId"].isNumber()) {
-            log::warn("Practice mapping payload is missing practiceLevelId: {}", payload.dump());
-            this->finishMappingLookup(std::nullopt);
-            return;
-        }
-
-        auto practiceLevelId = payload["practiceLevelId"].asInt().unwrapOr(0);
-        this->finishMappingLookup(practiceLevelId > 0 ? std::optional(practiceLevelId) : std::nullopt);
+        this->applyApprovedMappingsLookup(payload, m_fields->approvedMappingsSourceUrl, false);
     }
 
     void onPracticePressed(CCObject*) {
-        if (m_fields->lookupInFlight || m_fields->submitInFlight || m_fields->mappedPracticeLevelId <= 0) {
+        if (
+            m_fields->lookupInFlight ||
+            m_fields->submitInFlight ||
+            m_fields->practiceDownloadInFlight ||
+            m_fields->mappedPracticeLevelId <= 0
+        ) {
             return;
         }
 
@@ -926,48 +1017,146 @@ class $modify(PracticeMappingLevelInfoLayer, LevelInfoLayer) {
             return;
         }
 
-        if (auto savedLevel = manager->getSavedLevel(practiceLevelId)) {
-            auto resolvedLevelId = savedLevel->m_levelID.value();
-            if (resolvedLevelId == practiceLevelId) {
-                this->switchToMappedLevel(savedLevel);
-                return;
-            }
-
-            log::warn(
-                "Saved level lookup for mapped practice level {} returned mismatched level {}",
-                practiceLevelId,
-                resolvedLevelId
+        if (practiceLevelId <= 1) {
+            this->logPracticeWarning("open_abort", practiceLevelId, "reason=invalid_expected_level_id");
+            showPopup(
+                "Practice Mapper",
+                fmt::format("Mapped practice level #{} is invalid.", practiceLevelId)
             );
-        }
-
-        if (auto mainLevel = manager->getMainLevel(practiceLevelId, false)) {
-            auto resolvedLevelId = mainLevel->m_levelID.value();
-            if (resolvedLevelId == practiceLevelId) {
-                this->switchToMappedLevel(mainLevel);
-                return;
-            }
-
-            log::warn(
-                "Main level lookup for mapped practice level {} returned mismatched level {}",
-                practiceLevelId,
-                resolvedLevelId
-            );
-        }
-
-        log::warn("Could not resolve mapped practice level {} through GameLevelManager", practiceLevelId);
-        showPopup(
-            "Practice Mapper",
-            fmt::format("Mapped practice level #{} could not be found.", practiceLevelId)
-        );
-    }
-
-    void switchToMappedLevel(GJGameLevel* level) {
-        auto scene = LevelInfoLayer::scene(level, false);
-        if (!scene) {
-            showNotice("Failed to open practice level", NotificationIcon::Warning);
             return;
         }
 
+        this->logPracticeInfo(
+            "open_start",
+            practiceLevelId,
+            fmt::format("source_url={}", m_fields->approvedMappingsSourceUrl)
+        );
+
+        if (auto savedLevel = manager->getSavedLevel(practiceLevelId)) {
+            std::string failureReason;
+            if (isResolvedPracticeLevelValid(savedLevel, practiceLevelId, &failureReason)) {
+                this->logPracticeInfo(
+                    "open_cache_hit",
+                    practiceLevelId,
+                    fmt::format(
+                        "path=saved_level callback_level_id={} level_name=\"{}\"",
+                        savedLevel->m_levelID.value(),
+                        levelNameOrEmpty(savedLevel)
+                    )
+                );
+                this->switchToMappedLevel(savedLevel, "saved_level");
+                return;
+            }
+
+            this->logPracticeWarning(
+                "open_cache_invalid",
+                practiceLevelId,
+                fmt::format(
+                    "reason={} callback_level_id={} level_name=\"{}\"",
+                    failureReason,
+                    savedLevel->m_levelID.value(),
+                    levelNameOrEmpty(savedLevel)
+                )
+            );
+        }
+
+        if (m_fields->practiceDownloadInFlight) {
+            this->logPracticeWarning("open_abort", practiceLevelId, "reason=download_already_in_flight");
+            return;
+        }
+
+        m_fields->practiceDownloadInFlight = true;
+        m_fields->pendingPracticeDownloadLevelId = practiceLevelId;
+        manager->m_levelDownloadDelegate = this;
+        manager->downloadLevel(practiceLevelId, false, 0);
+        this->updateActionButtonStates();
+        this->logPracticeInfo("open_download_start", practiceLevelId, "path=download");
+        showNotice(fmt::format("Downloading mapped practice level #{}...", practiceLevelId));
+    }
+
+    void levelDownloadFinished(GJGameLevel* level) {
+        if (!m_fields->practiceDownloadInFlight || m_fields->pendingPracticeDownloadLevelId <= 0) {
+            LevelInfoLayer::levelDownloadFinished(level);
+            return;
+        }
+
+        auto expectedLevelId = m_fields->pendingPracticeDownloadLevelId;
+        m_fields->practiceDownloadInFlight = false;
+        m_fields->pendingPracticeDownloadLevelId = 0;
+        this->updateActionButtonStates();
+
+        std::string failureReason;
+        if (!isResolvedPracticeLevelValid(level, expectedLevelId, &failureReason)) {
+            auto callbackLevelId = level ? level->m_levelID.value() : 0;
+            this->logPracticeWarning(
+                "open_download_invalid",
+                expectedLevelId,
+                fmt::format(
+                    "reason={} callback_level_id={} level_name=\"{}\"",
+                    failureReason,
+                    callbackLevelId,
+                    levelNameOrEmpty(level)
+                )
+            );
+            showPopup(
+                "Practice Mapper",
+                fmt::format("Mapped practice level #{} could not be found.", expectedLevelId)
+            );
+            return;
+        }
+
+        this->logPracticeInfo(
+            "open_download_complete",
+            expectedLevelId,
+            fmt::format(
+                "callback_level_id={} level_name=\"{}\"",
+                level->m_levelID.value(),
+                levelNameOrEmpty(level)
+            )
+        );
+        this->switchToMappedLevel(level, "download");
+    }
+
+    void levelDownloadFailed(int response) {
+        if (!m_fields->practiceDownloadInFlight || m_fields->pendingPracticeDownloadLevelId <= 0) {
+            LevelInfoLayer::levelDownloadFailed(response);
+            return;
+        }
+
+        auto expectedLevelId = m_fields->pendingPracticeDownloadLevelId;
+        m_fields->practiceDownloadInFlight = false;
+        m_fields->pendingPracticeDownloadLevelId = 0;
+        this->updateActionButtonStates();
+
+        log::warn(
+            "[PracticeMapper] phase=open_download_failed original={} practice={} response={}",
+            this->currentLevelId(),
+            expectedLevelId,
+            response
+        );
+        showPopup(
+            "Practice Mapper",
+            fmt::format("Mapped practice level #{} could not be downloaded.", expectedLevelId)
+        );
+    }
+
+    void switchToMappedLevel(GJGameLevel* level, char const* path) {
+        auto scene = LevelInfoLayer::scene(level, false);
+        if (!scene) {
+            this->logPracticeWarning(
+                "open_abort",
+                level ? level->m_levelID.value() : 0,
+                fmt::format("reason=scene_creation_failed path={}", path)
+            );
+            showPopup("Practice Mapper", "Failed to open the mapped practice level.");
+            return;
+        }
+
+        this->logPracticeInfo(
+            "open_commit",
+            level ? level->m_levelID.value() : 0,
+            fmt::format("path={} level_name=\"{}\"", path, levelNameOrEmpty(level))
+        );
         CCDirector::sharedDirector()->replaceScene(CCTransitionFade::create(0.25f, scene));
     }
 };
