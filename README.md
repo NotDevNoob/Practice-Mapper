@@ -1,6 +1,6 @@
 # Practice Mapper
 
-Practice Mapper makes practice copies easy to open.
+Practice Mapper makes practice copies easy to open
 
 When an online level has an approved practice copy, a small `Practice` button appears next to the difficulty. Press it and the mapped practice level opens right away.
 
